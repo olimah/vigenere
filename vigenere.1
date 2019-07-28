@@ -1,0 +1,149 @@
+." Manpage for vigenere
+.".RI [ underlined ]
+.TH vigenere 1 "May 2019" "vigenere 1.0" "Manpage for vigenere"
+.SH NAME
+vignere \- Vigenere cipher cryptography tool
+.SH SYNOPSIS
+.BR "vigenere " "[-pht] [-o outputfile] -d|-e message -s|cipherword"
+.br
+.BR "vigenere " "[-pht] [-o outputfile] -d|-e -i inputfile -s|cipherword"
+.SH DESCRIPTION
+vigenere is an implementation of the Vigenere cipher algorithm extended over the entire set of printable ASCII characters.
+.PP
+.B \fIProgram Invocation\fR:
+vigenere can be invoked in the following two forms:
+.PP
+\fI1st Form\fR: If invoked with either the \fB-d\fR or \fB-e\fR option and two other non-option arguments, the first non-option argument will be taken as the message to decrypt/encrypt (as specified by \fB-d\fR or \fB-e\fR options respectively) whereas the second arguments denotes the cipherword to use. If upon invocation the \fB-s\fR option is passed to the utility, then the user is asked to input the cipherword via the command line. In this case the entry on the command line takes precedence over the second non-option command line argument.
+.PP
+\fI2nd Form\fR: If the utility, next to being invoked with the \fB-d\fR or \fB-e\fR switch, also gets passed the \fB-i\fR switch, which requires a file to read from, then the first non-option argument represents the cipherword, unless invoked with the \fB-s\fR switch, which takes overrides this argument.
+.PP
+.SH OPTIONS
+.TP
+.B -d, --decrypt
+decrypt the message or inputfile
+.TP
+.B -e, --encrypt
+encrypt the message or inputfile
+.TP
+.B -h, --help
+print a help message and exit
+.TP
+.BR "-i, --inputfile="inputfile
+read from inputfile
+.TP
+.BR "-o, --outputfile="outputfile
+write to outputfile
+.TP
+.B -p, --preserve
+preserve spaces when decoding/encoding
+.TP
+.BR "-s, --silent
+enter the cipherphrase on the commandline via termios
+.TP
+.BR "-t, --tabula_recta
+print the Tabula Recta to stdout and exit
+.SH THEORY
+.PP
+The Vigenere cipher is a multi phase shift cipher, which works by encryptig each letter of the original message with its corresponding letter in a secret cipherphrase. Consider the Tabula Recta below.
+.PP
+.B	Tabula Recta:
+.br
+
+.br
+   | A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+.br
+---------------------------------------------------------
+.br
+ A | A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+.br
+ B | B C D E F G H I J K L M N O P Q R S T U V W X Y Z A
+.br
+ C | C D E F G H I J K L M N O P Q R S T U V W X Y Z A B
+.br
+ D | E F G H I J K L M N O P Q R S T U V W X Y Z A B C C
+.br
+ E | E F G H I J K L M N O P Q R S T U V W X Y Z A B C D
+.br
+ F | F G H I J K L M N O P Q R S T U V W X Y Z A B C D E
+.br
+ G | G H I J K L M N O P Q R S T U V W X Y Z A B C D E F
+.br
+ H | H I J K L M N O P Q R S T U V W X Y Z A B C D E F G
+.br
+ I | I J K L M N O P Q R S T U V W X Y Z A B C D E F G H
+.br
+ J | J K L M N O P Q R S T U V W X Y Z A B C D E F G H I
+.br
+ K | K L M N O P Q R S T U V W X Y Z A B C D E F G H I J
+.br
+ L | L M N O P Q R S T U V W X Y Z A B C D E F G H I J K
+.br
+ M | M N O P Q R S T U V W X Y Z A B C D E F G H I J K L 
+.br
+ N | N O P Q R S T U V W X Y Z A B C D E F G H I J K L M
+.br
+ O | O P Q R S T U V W X Y Z A B C D E F G H I J K L M N
+.br
+ P | P Q R S T U V W X Y Z A B C D E F G H I J K L M N O
+.br
+ Q | Q R S T U V W X Y Z A B C D E F G H I J K L M N O P
+.br
+ R | R S T U V W X Y Z A B C D E F G H I J K L M N O P Q
+.br
+ S | S T U V W X Y Z A B C D E F G H I J K L M N O P Q R
+.br
+ T | T U V W X Y Z A B C D E F G H I J K L M N O P Q R S
+.br
+ U | U V W X Y Z A B C D E F G H I J K L M N O P Q R S T
+.br
+ V | V W X Y Z A B C D E F G H I J K L M N O P Q R S T U
+.br
+ W | W X Y Z A B C D E F G H I J K L M N O P Q R S T U V
+.br
+ X | X Y Z A B C D E F G H I J K L M N O P Q R S T U V W 
+.br
+ Y | Y Z A B C D E F G H I J K L M N O P Q R S T U V W X
+.br
+ Z | Z A B C D E F G H I J K L M N O P Q R S T U V W X Y
+.PP
+Suppose now, that the message to encrypt is:
+.B "SECRET MESSAGE TO ENCODE"
+.PP
+along with the cipherphrase:
+.B "TULIP"
+.PP
+First the message to encrypt/decrypt is matched up letter by letter with the cipherphrase. If the cipherphrase is shorter than the message to transform, then it is iterated repeatedly until every letter of the message is matched.
+.PP
+.B "SECRET MESSAGE TO ENCODE"
+.br
+.B "TULIPT ULIPTUL IP TULIPT"
+
+
+
+
+.PP
+The encrypted message therefore becomes:
+.B "..."
+.PP
+To decrypt the message...
+.PP
+The traditional Vigenere cipher only used capital letters from A-Z, as in the example above. This implementation extends this notion to the entire set of displayable ASCII characters (Hex 20 - Hex 7E).
+.PP
+The devigenere cipher is named after Blaise de Vigenere (1523 - 1596).
+.SH EXAMPLES
+.PP
+1. ...
+.PP
+vigenere...
+.PP
+2. ...
+.PP
+vigenere...
+.PP
+3. ...
+.PP
+vigenere...
+.SH BUGS
+While encrypting, a character may be transformed into  whitespace. When decrypting this character with an activated -p switch, the whitespace will be preserved.
+.SH AUTHOR
+Oliver Mahmoudi (contact@olivermahmoudi.com)
