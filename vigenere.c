@@ -30,22 +30,21 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define LOWER 32
-#define UPPER 126
-#define LOOP (UPPER-LOWER+1)
-#define ASCII_A	65
-#define ASCII_Z	90
-#define MAXINPUT 1024
-#define OPTSTRING "dehi:o:pst"
+#define LOWER 		0x20
+#define UPPER 		0x7E
+#define LOOP 		(UPPER - LOWER + 1)
+#define ASCII_A		0x41
+#define ASCII_Z		0x5A
+#define MAXINPUT 	1024
+#define OPTSTRING 	"dehi:o:pst"
 
-char *file_to_read = NULL , *file_to_write = NULL;
 FILE *fp_read = NULL, *fp_write = NULL;
 int iflag, oflag, pflag;
 
 int encrypt_char(char, char);
 int decrypt_char(char, char);
 void process_message(char *, char *, char *);
-int get_ciphermsg(char *);
+int get_secret_phrase(char *);
 void print_tabula_recta();
 void usage();
 
@@ -55,12 +54,12 @@ int encrypt_char(char _char_to_encrypt, char _secret_char)
 	char sct = _secret_char;
 	int encch;
 
-	if(cte == ' ' && pflag == 1)
+	if(cte == ' ' && pflag)
 		encch = cte;
 	else {
 		encch = cte + sct - LOWER;
 		if(encch > UPPER)
-			encch = encch-LOOP;
+			encch = encch - LOOP;
 	}
 
 	return encch;
@@ -72,7 +71,7 @@ int decrypt_char(char _char_to_decrypt, char _secret_char)
 	char sct = _secret_char;
 	int decch;
 
-	if(ctd == ' ' && pflag == 1)
+	if(ctd == ' ' && pflag)
 		decch = ctd;
 	else {
 		decch = ctd - sct + LOWER;
@@ -93,20 +92,20 @@ void process_message(char *_text, char *_secret, char *_action)
 	secretlen = strlen(secret);
 	action = _action;
 
-	if(iflag == 1) {
+	if(iflag) {
 		while ((n = fgetc(fp_read)) != EOF ) {
 			if(n == '\n') {
-				if(oflag == 1)
+				if(oflag)
 					putc(n, fp_write);	
 				else
 					putchar('\n');
 			} else {
-				if(strcmp(action, "encrypt") == 0)
+				if(!strcmp(action, "encrypt"))
 					ch = encrypt_char(n, secret[j]);
-				else if(strcmp(action, "decrypt") == 0)
+				else if(!strcmp(action, "decrypt"))
 					ch = decrypt_char(n, secret[j]);
 
-				if(oflag == 1)
+				if(oflag)
 					putc(ch, fp_write);	
 				else
 					putchar(ch);
@@ -118,7 +117,7 @@ void process_message(char *_text, char *_secret, char *_action)
 		}
 
 		fclose(fp_read);
-		if(fp_write != NULL)
+		if(fp_write)
 			fclose(fp_write);
 	} else {
 		text = _text;
@@ -126,9 +125,9 @@ void process_message(char *_text, char *_secret, char *_action)
 
 		i = 0;
 		while(i < textlen) {
-			if(strcmp(action, "encrypt") == 0)
+			if(!strcmp(action, "encrypt"))
 				ch = encrypt_char(text[i], secret[j]);
-			else if(strcmp(action, "decrypt") == 0)
+			else if(!strcmp(action, "decrypt"))
 				ch = decrypt_char(text[i], secret[j]);
 
 			putc(ch, stdout);
@@ -141,15 +140,15 @@ void process_message(char *_text, char *_secret, char *_action)
 	}
 }
 
-int get_ciphermsg(char *_ciphermsg)
+int get_secret_phrase(char *_secret_phrase)
 {
 	struct termios t_new, t_old;
-	char *buffer = _ciphermsg;
+	char *buffer = _secret_phrase;
 	size_t n, bufsize = MAXINPUT;
 	int i = 0;
 
 	if(tcgetattr(STDIN_FILENO, &t_old) < 0) {
-		printf("tcgetattr() failed");
+		fprintf(stderr, "tcgetattr() failed\n");
 		exit(-1);
 	}
 
@@ -157,22 +156,20 @@ int get_ciphermsg(char *_ciphermsg)
 	t_new.c_lflag &= ~ECHO;
 
 	if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_new) < 0) {
-		printf("tcsetattr() failed");
+		fprintf(stderr, "tcsetattr() failed\n");
 		exit(-1);
 	}
 
-	printf("Please enter your ciphertext: ");
+	printf("Enter your secret phrase: ");
 	n = getline(&buffer, &bufsize, stdin);
 
-	while(_ciphermsg[i] != '\n')
+	while(_secret_phrase[i] != '\n')
 		i++;
-
-	_ciphermsg[i] = '\0';
-
+	_secret_phrase[i] = '\0';
 	putchar('\n');
 
 	if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_old) < 0) {
-		printf("tcsetattr() failed");
+		fprintf(stderr, "tcsetattr() failed\n");
 		exit(-1);
 	}
 
@@ -215,17 +212,17 @@ void print_tabula_recta()
 
 void usage()
 {
-	printf("usage:\ndevignere [-hpt] [-o outputfile] -d|-e message -s|cipherword\n"
-		"devignere [-hpt] [-o outputfile] -d|-e -i inputfile -s|cipherword\n");
+	printf("usage:\ndevignere [-hpst] [-o outputfile] -d|-e message secret_phrase\n"
+		"devignere [-hpst] [-o outputfile] -d|-e -i inputfile secret_phrase\n");
 	exit(1);
 }
 
 int main(int argc, char *argv[])
 {
 	int opt, dflag, eflag, sflag;
-	char ciphermsg[MAXINPUT];
+	char secretphrase[MAXINPUT];
 
-	dflag = eflag = iflag = oflag = sflag = 0;
+	dflag = eflag = sflag = iflag = oflag = pflag = 0;
 
 	while ((opt = getopt(argc, argv, OPTSTRING)) != -1) {
 		switch(opt) {
@@ -237,20 +234,17 @@ int main(int argc, char *argv[])
 					break;
 			case 'h':
 					usage();
-					return(EXIT_SUCCESS);
 					break;
 			case 'i':
-					file_to_read = optarg;
-					if ((fp_read = fopen(file_to_read, "r")) == NULL) {
-						printf("Cannot open file: %s\n", file_to_read);
+					if (!(fp_read = fopen(optarg, "r"))) {
+						fprintf(stderr, "Cannot open file: %s\n", optarg);
 						return(EXIT_FAILURE);
 					}
 					iflag = 1;
 					break;
 			case 'o':
-					file_to_write = optarg;
-					if ((fp_write = fopen(file_to_write, "w")) == NULL) {
-						printf("Cannot open file: %s\n", file_to_write);
+					if (!(fp_write = fopen(optarg, "w"))) {
+						fprintf(stderr, "Cannot open file: %s\n", optarg);
 						return(EXIT_FAILURE);
 					}
 					oflag = 1;
@@ -259,7 +253,7 @@ int main(int argc, char *argv[])
 					pflag = 1;
 					break;
 			case 's':
-					pflag = 1;
+					sflag = 1;
 					break;
 			case 't':
 					print_tabula_recta();
@@ -267,46 +261,56 @@ int main(int argc, char *argv[])
 					break;
 			default:
 					usage();
-					return(EXIT_FAILURE);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	if(iflag == 0 && sflag == 0 && argc < 2)
+	/*
+	 * Safety checks
+	 */
+	if (!iflag && !sflag && argc < 2)
 		usage();
-	else if(iflag == 0 && sflag == 1 && argc < 1)
+	else if (!iflag && sflag && argc < 1)
 		usage();
-	else if(iflag == 1 && sflag == 0 && argc < 1)
+	else if (iflag && !sflag && argc < 1)
 		usage();
-
-/*
-	if(iflag == 0 && sflag == 0 && strlen(argv[0]) == 0 || strlen(argv[1]) == 0) {
-		printf("Cannot have zero length arguments.\n");
+	else if (!iflag && !sflag && !strlen(argv[0])
+			|| !iflag && !sflag && !strlen(argv[1])) {
+		fprintf(stderr, "Cannot have zero length arguments!\n");
+		usage();
+	} else if (dflag && eflag) {
+		fprintf(stderr, "Cannot decrypt and encrypt at the same time!\n");
+		usage();
+	} else if (!dflag && !eflag) {
+		fprintf(stderr, "Need to either decrypt or encrypt!\n");
 		usage();
 	}
-*/
 
-	if(dflag == 1 && eflag == 1) {
-		printf("Cannot decrypt and encrypt at the same time.\n");
-		usage();
-	}
+	/*
+	 * Go...
+	 */
+	if (sflag && dflag && !iflag) {
+		printf("!!!DEBUG sflag is set, iflag is not set, decrypting, argv[0] %s\n", argv[0]);
+		get_secret_phrase(secretphrase);
+		process_message(argv[0], secretphrase, "decrypt");
+	} else if (sflag && dflag && iflag) {
+		get_secret_phrase(secretphrase);
+		process_message(NULL, secretphrase, "decrypt");
+	} else if (!sflag && dflag && !iflag) {
+		process_message(argv[0], strncpy(secretphrase, argv[1], strlen(argv[1])), "decrypt");
+	} else if (!sflag && dflag && iflag) {
+		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), "decrypt");
+	} else if (sflag && eflag && !iflag) {
+		get_secret_phrase(secretphrase);
+		process_message(argv[0], secretphrase, "encrypt");
+	} else if (sflag && eflag && iflag) {
+		get_secret_phrase(secretphrase);
+		process_message(NULL, secretphrase, "encrypt");
+	} else if (!sflag && eflag && !iflag) {
+		process_message(argv[0], strncpy(secretphrase, argv[1], strlen(argv[1])), "encrypt");
+	} else /* !sflag && eflag && iflag */
+		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), "encrypt");
 
-	if(sflag == 1)
-		get_ciphermsg(ciphermsg);
-	else if(iflag == 1)
-		strncpy(ciphermsg, argv[0], strlen(argv[0]));
-	else
-		strncpy(ciphermsg, argv[1], strlen(argv[1]));
-
-	if(dflag == 1 && iflag == 0)
-		process_message(argv[0], ciphermsg, "decrypt");
-	else if(dflag == 1 && iflag == 1)
-		process_message(NULL, ciphermsg, "decrypt");
-	else if(eflag == 1 && iflag == 0)
-		process_message(argv[0], ciphermsg, "encrypt");
-	else if(eflag == 1 && iflag == 1)
-		process_message(NULL, ciphermsg, "encrypt");
-
-	return(0);
+	return 0;
 }
