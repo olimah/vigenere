@@ -44,7 +44,7 @@ int iflag, oflag, pflag;
 int encrypt_char(char, char);
 int decrypt_char(char, char);
 void process_message(char *, char *, char *);
-int get_secret_phrase(char *);
+void get_secret_phrase(char *);
 void print_tabula_recta();
 void usage();
 
@@ -140,11 +140,11 @@ void process_message(char *_text, char *_secret, char *_action)
 	}
 }
 
-int get_secret_phrase(char *_secret_phrase)
+void get_secret_phrase(char *_secret_phrase)
 {
 	struct termios t_new, t_old;
-	char *buffer = _secret_phrase;
-	size_t n, bufsize = MAXINPUT;
+	char *buffer = NULL;
+	size_t bufsize = 0;
 	int i = 0;
 
 	if(tcgetattr(STDIN_FILENO, &t_old) < 0) {
@@ -163,8 +163,10 @@ int get_secret_phrase(char *_secret_phrase)
 	printf("Enter your secret phrase: ");
 	n = getline(&buffer, &bufsize, stdin);
 
-	while(_secret_phrase[i] != '\n')
+	while(i < MAXINPUT - 1 && buffer[i] != '\n') {
+		_secret_phrase[i] = buffer[i];
 		i++;
+	}
 	_secret_phrase[i] = '\0';
 	putchar('\n');
 
@@ -172,8 +174,6 @@ int get_secret_phrase(char *_secret_phrase)
 		fprintf(stderr, "tcsetattr() failed\n");
 		exit(-1);
 	}
-
-	return n;
 }
 
 void print_tabula_recta()
@@ -212,8 +212,8 @@ void print_tabula_recta()
 
 void usage()
 {
-	printf("usage:\ndevignere [-hpst] [-o outputfile] -d|-e message secret_phrase\n"
-		"devignere [-hpst] [-o outputfile] -d|-e -i inputfile secret_phrase\n");
+	printf("usage:\ndevignere [-hpt] [-o outputfile] -d|-e -s|secret_phrase message\n"
+		"devignere [-hpt] [-o outputfile] -d|-e -i inputfile -s|secret_phrase\n");
 	exit(1);
 }
 
@@ -291,14 +291,13 @@ int main(int argc, char *argv[])
 	 * Go...
 	 */
 	if (sflag && dflag && !iflag) {
-		printf("!!!DEBUG sflag is set, iflag is not set, decrypting, argv[0] %s\n", argv[0]);
 		get_secret_phrase(secretphrase);
 		process_message(argv[0], secretphrase, "decrypt");
 	} else if (sflag && dflag && iflag) {
 		get_secret_phrase(secretphrase);
 		process_message(NULL, secretphrase, "decrypt");
 	} else if (!sflag && dflag && !iflag) {
-		process_message(argv[0], strncpy(secretphrase, argv[1], strlen(argv[1])), "decrypt");
+		process_message(argv[1], strncpy(secretphrase, argv[0], strlen(argv[0])), "decrypt");
 	} else if (!sflag && dflag && iflag) {
 		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), "decrypt");
 	} else if (sflag && eflag && !iflag) {
@@ -308,7 +307,7 @@ int main(int argc, char *argv[])
 		get_secret_phrase(secretphrase);
 		process_message(NULL, secretphrase, "encrypt");
 	} else if (!sflag && eflag && !iflag) {
-		process_message(argv[0], strncpy(secretphrase, argv[1], strlen(argv[1])), "encrypt");
+		process_message(argv[1], strncpy(secretphrase, argv[0], strlen(argv[0])), "encrypt");
 	} else /* !sflag && eflag && iflag */
 		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), "encrypt");
 
