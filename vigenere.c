@@ -161,7 +161,7 @@ void get_secret_phrase(char *_secret_phrase)
 	}
 
 	printf("Enter your secret phrase: ");
-	n = getline(&buffer, &bufsize, stdin);
+	getline(&buffer, &bufsize, stdin);
 
 	while(i < MAXINPUT - 1 && buffer[i] != '\n') {
 		_secret_phrase[i] = buffer[i];
