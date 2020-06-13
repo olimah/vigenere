@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Oliver Mahmoudi
+ * Copyright (c) 2020 Oliver Mahmoudi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #define LOWER 		0x20
 #define UPPER 		0x7E
@@ -37,54 +38,56 @@
 #define ASCII_Z		0x5A
 #define MAXINPUT 	1024
 #define OPTSTRING 	"dehi:o:pst"
+#define ENCRYPT		"encrypt"
+#define DECRYPT		"decrypt"
 
 FILE *fp_read = NULL, *fp_write = NULL;
-int iflag, oflag, pflag;
 
-int encrypt_char(char, char);
-int decrypt_char(char, char);
+int encrypt_char(int, int);
+int decrypt_char(int, int);
 void process_message(char *, char *, char *);
 void get_secret_phrase(char *);
 void print_tabula_recta();
 void usage();
 
-int encrypt_char(char _char_to_encrypt, char _secret_char)
+int
+encrypt_char(int _char_to_encrypt, int _secret_char)
 {
-	char cte = _char_to_encrypt;
-	char sct = _secret_char;
+	int cte = _char_to_encrypt;
+	int sct = _secret_char;
 	int encch;
 
-	if(cte == ' ' && pflag)
-		encch = cte;
-	else {
-		encch = cte + sct - LOWER;
-		if(encch > UPPER)
-			encch = encch - LOOP;
-	}
+	if(cte == '\n' || cte == '\t')
+		return cte;
+
+	encch = cte + sct - LOWER;
+	if(encch > UPPER)
+		encch = encch - LOOP;
 
 	return encch;
 }
 
-int decrypt_char(char _char_to_decrypt, char _secret_char)
+int
+decrypt_char(int _char_to_decrypt, int _secret_char)
 {
-	char ctd = _char_to_decrypt;
-	char sct = _secret_char;
+	int ctd = _char_to_decrypt;
+	int sct = _secret_char;
 	int decch;
 
-	if(ctd == ' ' && pflag)
-		decch = ctd;
-	else {
-		decch = ctd - sct + LOWER;
-		if(decch < LOWER)
-			decch = decch + LOOP;
-	}
+	if(ctd == '\n' || ctd == '\t')
+		return ctd;
+
+	decch = ctd - sct + LOWER;
+	if(decch < LOWER)
+		decch = decch + LOOP;
 
 	return decch;
 }
 
-void process_message(char *_text, char *_secret, char *_action)
+void
+process_message(char *_text, char *_secret, char *_action)
 {
-	int i, j, n, ch, textlen, secretlen;
+	int i, j, n, textlen, secretlen;
 	char *text = NULL, *secret = NULL, *action = NULL;
 
 	j = 0;
@@ -92,55 +95,83 @@ void process_message(char *_text, char *_secret, char *_action)
 	secretlen = strlen(secret);
 	action = _action;
 
-	if(iflag) {
+	if(fp_read && !strcmp(action, ENCRYPT)) { /* fp_read => *_text == NULL */
 		while ((n = fgetc(fp_read)) != EOF ) {
-			if(n == '\n') {
-				if(oflag)
-					putc(n, fp_write);	
-				else
-					putchar('\n');
-			} else {
-				if(!strcmp(action, "encrypt"))
-					ch = encrypt_char(n, secret[j]);
-				else if(!strcmp(action, "decrypt"))
-					ch = decrypt_char(n, secret[j]);
+			if(fp_write)
+				putc(encrypt_char(n, secret[j]), fp_write);
+			else
+				putc(encrypt_char(n, secret[j]), stdout);
 
-				if(oflag)
-					putc(ch, fp_write);	
-				else
-					putchar(ch);
-
-				j++;
-				if(j == secretlen)
-					j = 0;
-			}
+			j++;
+			if(j == secretlen)
+				j = 0;
 		}
 
 		fclose(fp_read);
 		if(fp_write)
 			fclose(fp_write);
-	} else {
+	} else if(fp_read && !strcmp(action, DECRYPT)) { /* fp_read => *_text == NULL */
+		while ((n = fgetc(fp_read)) != EOF ) {
+			if(fp_write)
+				putc(decrypt_char(n, secret[j]), fp_write);
+			else
+				putc(decrypt_char(n, secret[j]), stdout);
+
+			j++;
+			if(j == secretlen)
+				j = 0;
+		}
+
+		fclose(fp_read);
+		if(fp_write)
+			fclose(fp_write);
+	} else if(!fp_read && !strcmp(action, ENCRYPT)) { /* !fp_read => *_text != NULL */
 		text = _text;
 		textlen = strlen(text);
 
 		i = 0;
 		while(i < textlen) {
-			if(!strcmp(action, "encrypt"))
-				ch = encrypt_char(text[i], secret[j]);
-			else if(!strcmp(action, "decrypt"))
-				ch = decrypt_char(text[i], secret[j]);
+			if(fp_write)
+				putc(encrypt_char(text[i], secret[j]), fp_write);
+			else
+				putc(encrypt_char(text[i], secret[j]), stdout);
 
-			putc(ch, stdout);
-			i++;
-			j++;
+			i++; j++;
 			if(j == secretlen)
 				j = 0;
 		}
-		printf("\n");
+
+		if(fp_write) {
+			putc('\n', fp_write);
+			fclose(fp_write);
+		} else
+			putchar('\n');
+	} else if(!fp_read && !strcmp(action, DECRYPT)) { /* !fp_read => *_text != NULL */
+		text = _text;
+		textlen = strlen(text);
+
+		i = 0;
+		while(i < textlen) {
+			if(fp_write)
+				putc(decrypt_char(text[i], secret[j]), fp_write);
+			else
+				putc(decrypt_char(text[i], secret[j]), stdout);
+
+			i++; j++;
+			if(j == secretlen)
+				j = 0;
+		}
+
+		if(fp_write) {
+			putc('\n', fp_write);
+			fclose(fp_write);
+		} else
+			putchar('\n');
 	}
 }
 
-void get_secret_phrase(char *_secret_phrase)
+void
+get_secret_phrase(char *_secret_phrase)
 {
 	struct termios t_new, t_old;
 	char *buffer = NULL;
@@ -176,7 +207,8 @@ void get_secret_phrase(char *_secret_phrase)
 	}
 }
 
-void print_tabula_recta()
+void
+print_tabula_recta()
 {
 	int i, j, k, l;
 
@@ -210,21 +242,34 @@ void print_tabula_recta()
 	}
 }
 
-void usage()
+void
+usage()
 {
-	printf("usage:\ndevignere [-hpt] [-o outputfile] -d|-e -s|secret_phrase message\n"
-		"devignere [-hpt] [-o outputfile] -d|-e -i inputfile -s|secret_phrase\n");
+	printf("usage:\nvigenere [-ht] [-o outputfile] -d|-e -s|secret_phrase message\n"
+		"vigenere [-ht] [-o outputfile] -d|-e -i inputfile -s|secret_phrase\n");
 	exit(1);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	int opt, dflag, eflag, sflag;
 	char secretphrase[MAXINPUT];
 
-	dflag = eflag = sflag = iflag = oflag = pflag = 0;
+	dflag = eflag = sflag = 0;
 
-	while ((opt = getopt(argc, argv, OPTSTRING)) != -1) {
+    static struct option long_options[] = {
+  		{"decrypt",   no_argument, 0,  'd'},
+	    {"encrypt",  no_argument, 0,  'e'},
+    	{"help",  no_argument, 0,  'h'},
+  		{"inputfile",   required_argument, 0,  'i'},
+	    {"outputfile",  required_argument, 0,  'o'},
+	    {"secret-phrase",  no_argument, 0,  's'},
+    	{"tabula-recta",  no_argument, 0,  't'},
+	    {0, 0, 0, 0}
+    };
+
+	while ((opt = getopt_long(argc, argv, OPTSTRING, long_options, NULL)) != -1) {
 		switch(opt) {
 			case 'd':
 					dflag = 1;
@@ -240,17 +285,12 @@ int main(int argc, char *argv[])
 						fprintf(stderr, "Cannot open file: %s\n", optarg);
 						return(EXIT_FAILURE);
 					}
-					iflag = 1;
 					break;
 			case 'o':
 					if (!(fp_write = fopen(optarg, "w"))) {
 						fprintf(stderr, "Cannot open file: %s\n", optarg);
 						return(EXIT_FAILURE);
 					}
-					oflag = 1;
-					break;
-			case 'p':
-					pflag = 1;
 					break;
 			case 's':
 					sflag = 1;
@@ -269,14 +309,14 @@ int main(int argc, char *argv[])
 	/*
 	 * Safety checks
 	 */
-	if (!iflag && !sflag && argc < 2)
+	if (!fp_read && !sflag && argc < 2)
 		usage();
-	else if (!iflag && sflag && argc < 1)
+	else if (!fp_read && sflag && argc < 1)
 		usage();
-	else if (iflag && !sflag && argc < 1)
+	else if (fp_read && !sflag && argc < 1)
 		usage();
-	else if (!iflag && !sflag && !strlen(argv[0])
-			|| !iflag && !sflag && !strlen(argv[1])) {
+	else if (!fp_read && !sflag && !strlen(argv[0])
+			|| !fp_read && !sflag && !strlen(argv[1])) {
 		fprintf(stderr, "Cannot have zero length arguments!\n");
 		usage();
 	} else if (dflag && eflag) {
@@ -290,26 +330,26 @@ int main(int argc, char *argv[])
 	/*
 	 * Go...
 	 */
-	if (sflag && dflag && !iflag) {
+	if (sflag && dflag && !fp_read) {
 		get_secret_phrase(secretphrase);
-		process_message(argv[0], secretphrase, "decrypt");
-	} else if (sflag && dflag && iflag) {
+		process_message(argv[0], secretphrase, DECRYPT);
+	} else if (sflag && dflag && fp_read) {
 		get_secret_phrase(secretphrase);
-		process_message(NULL, secretphrase, "decrypt");
-	} else if (!sflag && dflag && !iflag) {
-		process_message(argv[1], strncpy(secretphrase, argv[0], strlen(argv[0])), "decrypt");
-	} else if (!sflag && dflag && iflag) {
-		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), "decrypt");
-	} else if (sflag && eflag && !iflag) {
+		process_message(NULL, secretphrase, DECRYPT);
+	} else if (!sflag && dflag && !fp_read) {
+		process_message(argv[1], strncpy(secretphrase, argv[0], strlen(argv[0])), DECRYPT);
+	} else if (!sflag && dflag && fp_read) {
+		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), DECRYPT);
+	} else if (sflag && eflag && !fp_read) {
 		get_secret_phrase(secretphrase);
-		process_message(argv[0], secretphrase, "encrypt");
-	} else if (sflag && eflag && iflag) {
+		process_message(argv[0], secretphrase, ENCRYPT);
+	} else if (sflag && eflag && fp_read) {
 		get_secret_phrase(secretphrase);
-		process_message(NULL, secretphrase, "encrypt");
-	} else if (!sflag && eflag && !iflag) {
-		process_message(argv[1], strncpy(secretphrase, argv[0], strlen(argv[0])), "encrypt");
-	} else /* !sflag && eflag && iflag */
-		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), "encrypt");
+		process_message(NULL, secretphrase, ENCRYPT);
+	} else if (!sflag && eflag && !fp_read) {
+		process_message(argv[1], strncpy(secretphrase, argv[0], strlen(argv[0])), ENCRYPT);
+	} else /* !sflag && eflag && fp_read */
+		process_message(NULL, strncpy(secretphrase, argv[0], strlen(argv[0])), ENCRYPT);
 
-	return 0;
+	return(EXIT_SUCCESS);
 }
