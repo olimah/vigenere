@@ -1,50 +1,47 @@
 ." Manpage for vigenere
 .".RI [ underlined ]
-.TH vigenere 1 "May 2019" "vigenere 1.0" "Manpage for vigenere"
+.TH vigenere 1 "June 2020" "vigenere 1.0" "Manpage for vigenere"
 .SH NAME
-vignere \- Vigenere cipher cryptography tool
+vigenere \- Vigenere cipher cryptography tool
 .SH SYNOPSIS
-.BR "vigenere " "[-pht] [-o outputfile] -d|-e message -s|cipherword"
+.BR "vigenere " "[-ht] [-o outputfile] -d|-e -s|cipherword message"
 .br
-.BR "vigenere " "[-pht] [-o outputfile] -d|-e -i inputfile -s|cipherword"
+.BR "vigenere " "[-ht] [-o outputfile] -d|-e -i inputfile -s|cipherword"
 .SH DESCRIPTION
-vigenere is an implementation of the Vigenere cipher algorithm extended over the entire set of printable ASCII characters.
+vigenere is an implementation of the Vigenere cipher algorithm extended to the entire set of printable ASCII characters.
 .PP
 .B \fIProgram Invocation\fR:
 vigenere can be invoked in the following two forms:
 .PP
-\fI1st Form\fR: If invoked with either the \fB-d\fR or \fB-e\fR option and two other non-option arguments, the first non-option argument will be taken as the message to decrypt/encrypt (as specified by \fB-d\fR or \fB-e\fR options respectively) whereas the second arguments denotes the cipherword to use. If upon invocation the \fB-s\fR option is passed to the utility, then the user is asked to input the cipherword via the command line. In this case the entry on the command line takes precedence over the second non-option command line argument.
+\fI1st Form\fR: When invoked with either the \fB-d\fR or \fB-e\fR option and two other non-option arguments, the first non-option argument will be taken as the cipherword to use, whereas the second argument denotes the message to decrypt/encrypt. If upon invocation the \fB-s\fR option is also passed to the utility, then the user is asked to input the cipherword via the command line. User input will not be echoed. In this case, the first non-option command line argument resembles the message.
 .PP
-\fI2nd Form\fR: If the utility, next to being invoked with the \fB-d\fR or \fB-e\fR switch, also gets passed the \fB-i\fR switch, which requires a file to read from, then the first non-option argument represents the cipherword, unless invoked with the \fB-s\fR switch, which takes overrides this argument.
+\fI2nd Form\fR: If the utility, next to being invoked with the \fB-d\fR or \fB-e\fR switch, also gets passed the \fB-i\fR switch, which requires a file to read from, then the first non-option argument represents the cipherword, unless overridden with the \fB-s\fR switch.
 .PP
 .SH OPTIONS
 .TP
 .B -d, --decrypt
-decrypt the message or inputfile
+decrypt message or inputfile
 .TP
 .B -e, --encrypt
-encrypt the message or inputfile
+encrypt message or inputfile
 .TP
 .B -h, --help
 print a help message and exit
 .TP
-.BR "-i, --inputfile="inputfile
+.BR "-i inputfile, --inputfile="inputfile
 read from inputfile
 .TP
-.BR "-o, --outputfile="outputfile
-write to outputfile
+.BR "-o outputfile, --outputfile="outputfile
+write to outputfile 
 .TP
-.B -p, --preserve
-preserve spaces when decoding/encoding
+.BR "-s, --secret-phrase
+enter the cipherphrase unechoed via the command line
 .TP
-.BR "-s, --silent
-enter the cipherphrase on the commandline via termios
-.TP
-.BR "-t, --tabula_recta
+.BR "-t, --tabula-recta
 print the Tabula Recta to stdout and exit
 .SH THEORY
 .PP
-The Vigenere cipher is a multi phase shift cipher, which works by encryptig each letter of the original message with its corresponding letter in a secret cipherphrase. Consider the Tabula Recta below.
+The Vigenere cipher is a multi phase shift cipher, which works, by encrypting each letter of an original message with the corresponding letter of a freely chosen cipherphrase. Consider the Tabula Recta below.
 .PP
 .B	Tabula Recta:
 .br
@@ -112,38 +109,41 @@ Suppose now, that the message to encrypt is:
 along with the cipherphrase:
 .B "TULIP"
 .PP
-First the message to encrypt/decrypt is matched up letter by letter with the cipherphrase. If the cipherphrase is shorter than the message to transform, then it is iterated repeatedly until every letter of the message is matched.
+To encrypt a message, it is first lined up with the cipherphrase, letter by letter. If the cipherphrase is shorter than the message to transform, then it is simply repeated until every letter of the message is covered.
 .PP
 .B "SECRET MESSAGE TO ENCODE"
 .br
 .B "TULIPT ULIPTUL IP TULIPT"
-
-
-
-
 .PP
-The encrypted message therefore becomes:
-.B "..."
+Actual encryption takes place, by finding the character, for which a pair of corresponding message- and cipherphrase letters intersect in the Tabula Recta. Whereas a message character is looked up in the leftmost column (message column), a cipherword letter is searched for in the topmost row (cipherword row). Horizontal- and vertical lines drawn from the characters positions on these axes, result in the encryped character. When performing these lookups for the above character pairs (coordinates), the encrypted message is:
 .PP
-To decrypt the message...
+.B "LYNZTM GPAHTAP BD XHNWSX"
 .PP
-The traditional Vigenere cipher only used capital letters from A-Z, as in the example above. This implementation extends this notion to the entire set of displayable ASCII characters (Hex 20 - Hex 7E).
+To decrypt a message, knowledge of the cipherword is required. The encrypted message is aligned with the cipherword as if wanting to encrypt. However, instead of finding the point of intersection inside of the Tabula Recta, one now has to find the letters of the original message in the message column. This is done, by first locating the ciphersword's character of a given pair in the cipherword row. Once found, a perpendicular line is drawn downwards until the pair's encrypted character is encountered inside the Tabula Recta. When now drawing a horizontal line to the left from this character, one eventually reaches the decrypted character for the pair in the message column. By following these steps, one obtains the original message for the encrypted message above:
 .PP
-The devigenere cipher is named after Blaise de Vigenere (1523 - 1596).
+.B "LYNZTM GPAHTAP BD XHNWSX"
+.br
+.B "TULIPT ULIPTUL IP TULIPT"
+.PP
+gives:
+.PP
+.B "SECRET MESSAGE TO ENCODE"
+.PP
+The traditional Vigenere cipher only uses capital letters from A-Z, as in the example above. This implementation extends this notion to the entire set of displayable ASCII characters (Hex 20 - Hex 7E).
+.PP
+The Vigenere cipher is named after Blaise de Vigenere (1523 - 1596).
 .SH EXAMPLES
 .PP
-1. ...
+1. Encrypt the message: "Hello world" with the cipherword "213" and write the result to stdout.
 .PP
-vigenere...
+vigenere -e 213 "Hello world"
 .PP
-2. ...
+2. Decrypt the message: (zo{u)Uyn$(vsnP)%Ln~w%pn using the word TULIP as a cipherphrase.
 .PP
-vigenere...
+vigenere -d TULIP '(zo{u)Uyn$(vsnP)%Ln~w%pn'
 .PP
-3. ...
+3. Encrypt the contents of file: ~/message.txt and write it to: ~/encrypted.txt. The cipherphrase is entered via the command line.
 .PP
-vigenere...
-.SH BUGS
-While encrypting, a character may be transformed into  whitespace. When decrypting this character with an activated -p switch, the whitespace will be preserved.
+vigenere -e -o ~/encrypted.txt -i ~/message.txt -s
 .SH AUTHOR
 Oliver Mahmoudi (contact@olivermahmoudi.com)
